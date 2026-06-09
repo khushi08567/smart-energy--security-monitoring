@@ -4,8 +4,8 @@ const sequelize = require("../config/database");
 const User = sequelize.define("User", {
   id: {
     type: DataTypes.INTEGER,
-    autoIncrement: true,
     primaryKey: true,
+    autoIncrement: true,
   },
   name: {
     type: DataTypes.STRING,
@@ -15,19 +15,23 @@ const User = sequelize.define("User", {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
+    validate: { isEmail: true },
   },
   password: {
     type: DataTypes.STRING,
     allowNull: false,
   },
   role: {
-    type: DataTypes.STRING,
-    defaultValue: "user",
+    type: DataTypes.ENUM("Admin", "Warden", "Viewer"),
+    defaultValue: "Viewer",
   },
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
   },
+}, {
+  tableName: "users",
+  timestamps: true,
 });
 
 module.exports = User;
