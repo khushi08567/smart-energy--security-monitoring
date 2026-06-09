@@ -2,7 +2,7 @@ const SensorData = require("../models/SensorData");
 const Device = require("../models/Device");
 const { sendSuccess, sendError } = require("../utils/response");
 
-// POST /api/sensors/data — receive sensor reading
+// POST /api/sensors/data
 const saveSensorData = async (req, res) => {
   try {
     const { device_id, room_id, type, value, unit } = req.body;
@@ -11,19 +11,24 @@ const saveSensorData = async (req, res) => {
       return sendError(res, "device_id, room_id, type, and value are required", 400);
     }
 
-    // Validate device exists in MySQL
     const device = await Device.findOne({ where: { device_id } });
     if (!device) {
       return sendError(res, "Device not registered. Register device first.", 404);
     }
 
-    // Save reading to MongoDB
     const reading = await SensorData.create({
       device_id, room_id, type, value, unit
     });
 
-    // Update last_seen in MySQL
     await device.update({ last_seen: new Date() });
+
+    const io = req.app.get("io");
+    if (io) {
+      const payload = { device_id, room_id, type, value, unit,
+        timestamp: reading.timestamp };
+      io.emit("sensor-data", payload);
+      io.to(`room-${room_id}`).emit("room-data", payload);
+    }
 
     return sendSuccess(res, reading, "Sensor data saved", 201);
   } catch (error) {
@@ -31,7 +36,7 @@ const saveSensorData = async (req, res) => {
   }
 };
 
-// GET /api/sensors/data/:deviceId — readings for a device
+// GET /api/sensors/data/:deviceId
 const getDeviceReadings = async (req, res) => {
   try {
     const { from, to, limit = 50 } = req.query;
@@ -53,7 +58,7 @@ const getDeviceReadings = async (req, res) => {
   }
 };
 
-// GET /api/sensors/latest/:roomId — latest reading per device in room
+// GET /api/sensors/latest/:roomId
 const getLatestByRoom = async (req, res) => {
   try {
     const latest = await SensorData.aggregate([
@@ -77,7 +82,7 @@ const getLatestByRoom = async (req, res) => {
   }
 };
 
-// GET /api/sensors/history — all data with date filters
+// GET /api/sensors/history
 const getSensorHistory = async (req, res) => {
   try {
     const { from, to, type, room_id, limit = 100 } = req.query;

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket Test</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Socket Test</h1>
+
+  <script>
+    const socket = io('http://localhost:5000');
+
+    socket.on('connect', () => {
+      console.log('Connected! ID:', socket.id);
+      socket.emit('join-room', 1);
+    });
+
+    socket.on('joined', (data) => {
+      console.log('Joined:', data);
+    });
+
+    socket.on('sensor-data', (data) => {
+      console.log('LIVE DATA:', data);
+    });
+
+    socket.on('room-data', (data) => {
+      console.log('ROOM 1 DATA:', data);
+    });
+  </script>
+</body>
+</html>

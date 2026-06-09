@@ -4,8 +4,8 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const mongoose = require("mongoose");
 const sequelize = require("./src/config/database");
+const connectMongoDB = require("./src/config/mongoDb");
 const setupSocket = require("./src/config/socketHandler");
 
 // Models
@@ -28,6 +28,7 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
+// Make io available in all controllers
 app.set("io", io);
 
 app.use(cors());
@@ -54,13 +55,7 @@ app.use((req, res) => {
 setupSocket(io);
 
 const startServer = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected successfully");
-  } catch (err) {
-    console.error("MongoDB connection failed:", err.message);
-    process.exit(1);
-  }
+  await connectMongoDB();
 
   sequelize.sync({ alter: true }).then(() => {
     console.log("MySQL connected and synced");
