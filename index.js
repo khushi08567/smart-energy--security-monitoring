@@ -36,7 +36,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 const deviceRoutes = require("./src/routes/deviceRoutes");
 app.use("/api/devices", deviceRoutes);
-
+const roomRoutes = require("./src/routes/roomRoutes");
+app.use("/api/rooms", roomRoutes);
 // Test protected route
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({
