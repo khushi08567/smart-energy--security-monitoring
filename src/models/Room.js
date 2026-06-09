@@ -4,12 +4,13 @@ const sequelize = require("../config/database");
 const Room = sequelize.define("Room", {
   id: {
     type: DataTypes.INTEGER,
-    autoIncrement: true,
     primaryKey: true,
+    autoIncrement: true,
   },
   room_number: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true,
   },
   floor: {
     type: DataTypes.INTEGER,
@@ -18,11 +19,19 @@ const Room = sequelize.define("Room", {
   building: {
     type: DataTypes.STRING,
     allowNull: false,
+    defaultValue: "Main Building",
   },
   status: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM("active", "inactive", "maintenance"),
     defaultValue: "active",
   },
+  occupancy: {
+    type: DataTypes.ENUM("occupied", "vacant"),
+    defaultValue: "vacant",
+  },
+}, {
+  tableName: "rooms",
+  timestamps: true,
 });
 
 module.exports = Room;

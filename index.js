@@ -34,6 +34,8 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+const deviceRoutes = require("./src/routes/deviceRoutes");
+app.use("/api/devices", deviceRoutes);
 
 // Test protected route
 app.get("/api/protected", verifyToken, (req, res) => {
