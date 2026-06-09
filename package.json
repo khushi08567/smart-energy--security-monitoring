@@ -1,11 +1,12 @@
 {
   "name": "smart-energy--security-monitoring",
   "version": "1.0.0",
-  "description": "Ultimez internship project - It is smart IoT energy securIty monitoring system for  campus/hostel",
+  "description": "Ultimez internship project - It is smart IoT energy security monitoring system for campus/hostel",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "simulate": "node simulator/simulator.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
