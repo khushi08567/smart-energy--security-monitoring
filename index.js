@@ -1,65 +1,76 @@
 require("dotenv").config();
 
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const sequelize = require("./src/config/database");
+const setupSocket = require("./src/config/socketHandler");
 
-// Import models (needed so Sequelize knows about them before sync)
+// Models
 const User = require("./src/models/User");
 const Room = require("./src/models/Room");
 const Device = require("./src/models/Device");
 
-// Import routes
+// Routes
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
+const deviceRoutes = require("./src/routes/deviceRoutes");
+const roomRoutes = require("./src/routes/roomRoutes");
+const sensorRoutes = require("./src/routes/sensorRoutes");
 
-// Import middleware
 const verifyToken = require("./src/middleware/authMiddleware");
 
-// Create app FIRST — before any app.use()
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
 
-// Middleware
+app.set("io", io);
+
 app.use(cors());
 app.use(express.json());
 
-// Health check
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Smart Energy & Security API is running"
-  });
+  res.json({ success: true, message: "Smart Energy & Security API is running" });
 });
 
-// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-const deviceRoutes = require("./src/routes/deviceRoutes");
 app.use("/api/devices", deviceRoutes);
-const roomRoutes = require("./src/routes/roomRoutes");
 app.use("/api/rooms", roomRoutes);
-// Test protected route
+app.use("/api/sensors", sensorRoutes);
+
 app.get("/api/protected", verifyToken, (req, res) => {
-  res.json({
-    message: "Protected route accessed successfully",
-    user: req.user,
-  });
+  res.json({ message: "Protected route accessed", user: req.user });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 
-// Start server + sync DB
-sequelize
-  .sync({ alter: true })
-  .then(() => {
-    console.log("MySQL connected and synced successfully");
-    app.listen(process.env.PORT || 5000, () => {
+setupSocket(io);
+
+const startServer = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    process.exit(1);
+  }
+
+  sequelize.sync({ alter: true }).then(() => {
+    console.log("MySQL connected and synced");
+    server.listen(process.env.PORT || 5000, () => {
       console.log(`Server running on port ${process.env.PORT || 5000}`);
+      console.log("Socket.io is ready for connections");
     });
-  })
-  .catch((error) => {
-    console.error("Database connection failed:", error);
+  }).catch((err) => {
+    console.error("MySQL connection failed:", err);
   });
+};
+
+startServer();
