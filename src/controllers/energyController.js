@@ -1,6 +1,7 @@
 const SensorData = require("../models/SensorData");
 const EnergyReport = require("../models/EnergyReport");
 const Room = require("../models/Room");
+const Device = require("../models/Device");
 const { sendSuccess, sendError } = require("../utils/response");
 
 const getDayRange = (dateStr) => {
@@ -10,6 +11,8 @@ const getDayRange = (dateStr) => {
   end.setHours(23, 59, 59, 999);
   return { start, end };
 };
+
+// ─── DAY 13 FUNCTIONS ───────────────────────────────────────────
 
 // GET /api/energy/summary/:roomId?date=YYYY-MM-DD
 const getRoomDailySummary = async (req, res) => {
@@ -25,19 +28,19 @@ const getRoomDailySummary = async (req, res) => {
     });
 
     if (readings.length === 0) {
-      return sendSuccess(res, { room_id: parseInt(roomId), date, total_kwh: 0, average_kwh: 0, peak_kwh: 0, reading_count: 0 }, "No energy data for this date");
+      return sendSuccess(res, {
+        room_id: parseInt(roomId), date,
+        total_kwh: 0, average_kwh: 0, peak_kwh: 0, reading_count: 0,
+      }, "No energy data for this date");
     }
 
     const values = readings.map((r) => parseFloat(r.value));
     const total = values.reduce((a, b) => a + b, 0);
-    const average = total / values.length;
-    const peak = Math.max(...values);
-
     return sendSuccess(res, {
       room_id: parseInt(roomId), date,
       total_kwh: parseFloat(total.toFixed(2)),
-      average_kwh: parseFloat(average.toFixed(2)),
-      peak_kwh: parseFloat(peak.toFixed(2)),
+      average_kwh: parseFloat((total / values.length).toFixed(2)),
+      peak_kwh: parseFloat(Math.max(...values).toFixed(2)),
       reading_count: readings.length,
     }, "Daily energy summary");
   } catch (error) {
@@ -56,7 +59,6 @@ const compareRoomsByFloor = async (req, res) => {
     if (rooms.length === 0) return sendError(res, "No rooms found on this floor", 404);
 
     const roomIds = rooms.map((r) => r.id);
-
     const results = await SensorData.aggregate([
       { $match: { room_id: { $in: roomIds }, type: "energy", timestamp: { $gte: start, $lte: end } } },
       { $group: { _id: "$room_id", total_kwh: { $sum: { $toDouble: "$value" } }, reading_count: { $sum: 1 } } },
@@ -106,9 +108,11 @@ const detectAnomalies = async (req, res) => {
       }));
 
     return sendSuccess(res, {
-      date, overall_average_kwh: parseFloat(overallAverage.toFixed(2)),
+      date,
+      overall_average_kwh: parseFloat(overallAverage.toFixed(2)),
       anomaly_threshold_kwh: parseFloat(threshold.toFixed(2)),
-      anomaly_count: anomalies.length, anomalies,
+      anomaly_count: anomalies.length,
+      anomalies,
     }, anomalies.length > 0 ? "Anomalies detected!" : "No anomalies detected");
   } catch (error) {
     return sendError(res, error.message);
@@ -127,12 +131,10 @@ const getRoomTrend = async (req, res) => {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
       const { start, end } = getDayRange(dateStr);
-
       const readings = await SensorData.find({
         room_id: parseInt(roomId), type: "energy",
         timestamp: { $gte: start, $lte: end },
       });
-
       const total = readings.reduce((a, r) => a + parseFloat(r.value), 0);
       trend.push({ date: dateStr, total_kwh: parseFloat(total.toFixed(2)), reading_count: readings.length });
     }
@@ -208,4 +210,164 @@ const calculateBill = async (req, res) => {
   }
 };
 
-module.exports = { getRoomDailySummary, compareRoomsByFloor, detectAnomalies, getRoomTrend, getMonthlyReport, calculateBill };
+// ─── DAY 14 NEW FUNCTIONS ────────────────────────────────────────
+
+// GET /api/energy/leaderboard?date=YYYY-MM-DD
+// Most and least efficient rooms (energy leaderboard)
+const getEnergyLeaderboard = async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split("T")[0];
+    const { start, end } = getDayRange(date);
+
+    const results = await SensorData.aggregate([
+      { $match: { type: "energy", timestamp: { $gte: start, $lte: end } } },
+      {
+        $group: {
+          _id: "$room_id",
+          total_kwh: { $sum: { $toDouble: "$value" } },
+          reading_count: { $sum: 1 },
+        },
+      },
+      { $sort: { total_kwh: 1 } }, // ascending — least first
+    ]);
+
+    if (results.length === 0) {
+      return sendSuccess(res, { most_efficient: [], least_efficient: [] }, "No data available");
+    }
+
+    // Get room details from MySQL for each result
+    const enriched = await Promise.all(
+      results.map(async (r) => {
+        const room = await Room.findByPk(r._id);
+        return {
+          room_id: r._id,
+          room_number: room ? room.room_number : "Unknown",
+          floor: room ? room.floor : null,
+          total_kwh: parseFloat(r.total_kwh.toFixed(2)),
+          reading_count: r.reading_count,
+        };
+      })
+    );
+
+    return sendSuccess(res, {
+      date,
+      most_efficient: enriched.slice(0, 3),       // lowest usage
+      least_efficient: enriched.slice(-3).reverse(), // highest usage
+      all_rooms: enriched,
+    }, "Energy leaderboard");
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+};
+
+// GET /api/energy/peak-hours/:roomId?date=YYYY-MM-DD
+// Which hours of the day use the most energy
+const getPeakHours = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const date = req.query.date || new Date().toISOString().split("T")[0];
+    const { start, end } = getDayRange(date);
+
+    const results = await SensorData.aggregate([
+      {
+        $match: {
+          room_id: parseInt(roomId),
+          type: "energy",
+          timestamp: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: { $hour: "$timestamp" },
+          total_kwh: { $sum: { $toDouble: "$value" } },
+          reading_count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } }, // sort by hour
+    ]);
+
+    const hours = results.map((r) => ({
+      hour: r._id,
+      hour_label: `${String(r._id).padStart(2, "0")}:00`,
+      total_kwh: parseFloat(r.total_kwh.toFixed(2)),
+      reading_count: r.reading_count,
+    }));
+
+    const peakHour = hours.length > 0
+      ? hours.reduce((a, b) => (a.total_kwh > b.total_kwh ? a : b))
+      : null;
+
+    return sendSuccess(res, {
+      room_id: parseInt(roomId),
+      date,
+      peak_hour: peakHour,
+      hourly_breakdown: hours,
+    }, "Peak hours analysis");
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+};
+
+// GET /api/energy/idle-devices?minutes=30
+// Devices that have been on but no motion detected for N minutes
+const getIdleDevices = async (req, res) => {
+  try {
+    const minutes = parseInt(req.query.minutes) || 30;
+    const since = new Date(Date.now() - minutes * 60 * 1000);
+
+    // Find rooms with recent energy readings (device is ON)
+    const energyRooms = await SensorData.distinct("room_id", {
+      type: "energy",
+      value: { $gt: 0 },
+      timestamp: { $gte: since },
+    });
+
+    // Find rooms with recent motion (someone is present)
+    const motionRooms = await SensorData.distinct("room_id", {
+      type: "motion",
+      value: true,
+      timestamp: { $gte: since },
+    });
+
+    // Idle = has energy but NO motion
+    const idleRoomIds = energyRooms.filter(
+      (id) => !motionRooms.includes(id)
+    );
+
+    // Get room details
+    const idleRooms = await Promise.all(
+      idleRoomIds.map(async (roomId) => {
+        const room = await Room.findByPk(roomId);
+        return {
+          room_id: roomId,
+          room_number: room ? room.room_number : "Unknown",
+          floor: room ? room.floor : null,
+          status: "Energy ON but no motion detected",
+          idle_since_minutes: minutes,
+        };
+      })
+    );
+
+    return sendSuccess(res, {
+      checked_last_minutes: minutes,
+      idle_room_count: idleRooms.length,
+      idle_rooms: idleRooms,
+    }, idleRooms.length > 0
+      ? `${idleRooms.length} room(s) have devices on with no occupancy`
+      : "No idle devices detected");
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+};
+
+module.exports = {
+  getRoomDailySummary,
+  compareRoomsByFloor,
+  detectAnomalies,
+  getRoomTrend,
+  getMonthlyReport,
+  calculateBill,
+  getEnergyLeaderboard,  // ← must be here
+  getPeakHours,
+  getIdleDevices,
+};
