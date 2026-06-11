@@ -4,8 +4,8 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const sequelize = require("./src/config/database");
-const connectMongoDB = require("./src/config/mongoDb");
 const setupSocket = require("./src/config/socketHandler");
 
 // Models
@@ -19,16 +19,17 @@ const userRoutes = require("./src/routes/userRoutes");
 const deviceRoutes = require("./src/routes/deviceRoutes");
 const roomRoutes = require("./src/routes/roomRoutes");
 const sensorRoutes = require("./src/routes/sensorRoutes");
+const energyRoutes = require("./src/routes/energyRoutes");
 
 const verifyToken = require("./src/middleware/authMiddleware");
 
+// Create app FIRST
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// Make io available in all controllers
 app.set("io", io);
 
 app.use(cors());
@@ -38,11 +39,13 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "Smart Energy & Security API is running" });
 });
 
+// All routes AFTER app is created
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/sensors", sensorRoutes);
+app.use("/api/energy", energyRoutes);
 
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Protected route accessed", user: req.user });
@@ -55,7 +58,13 @@ app.use((req, res) => {
 setupSocket(io);
 
 const startServer = async () => {
-  await connectMongoDB();
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    process.exit(1);
+  }
 
   sequelize.sync({ alter: true }).then(() => {
     console.log("MySQL connected and synced");
