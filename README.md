@@ -1,9 +1,123 @@
 # smart-energy--security-monitoring
 Ultimez internship project - It is smart IoT energy securIty monitoring system for  campus/hostel 
 
+# Smart Energy & Security Monitoring System
 
-warden login token : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJ3YXJkZW5AdGVzdC5jb20iLCJyb2xlIjoiV2FyZGVuIiwiaWF0IjoxNzgwOTk2Nzc4LCJleHAiOjE3ODEwODMxNzh9.pB9-MR5op5bZ_lhcbQ1D0UzzdYIoK6mBCsGN35-1Bnc
-admin login token : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJraHVzaGlwYXRoYWsuMDgwQGdtYWlsLmNvbSIsInJvbGUiOiJBZG1pbiIsImlhdCI6MTc4MDk5NjEyOSwiZXhwIjoxNzgxMDgyNTI5fQ.i1n4bE12Ncc_u-50KpIFJCu6Z4eXSQp-6VLSiLgb1QA
+Ultimez Technology Internship Project — Phase 1
 
-Viewer login token : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZW1haWwiOiJ2aWV3ZXJAdGVzdC5jb20iLCJyb2xlIjoiVmlld2VyIiwiaWF0IjoxNzgwOTk2OTcwLCJleHAiOjE3ODEwODMzNzB9.L34iwhDHAw2aUUVRL5c3XRkH_jLX-ApHixJVqXfhN8U
+A real-time IoT backend system for monitoring energy usage
+and security across a hostel/campus.
 
+---
+
+## Tech Stack
+- **Backend**: Node.js + Express.js
+- **SQL Database**: MySQL + Sequelize
+- **NoSQL Database**: MongoDB + Mongoose
+- **Real-time**: Socket.io
+- **Auth**: JWT + bcrypt + Role-based access
+
+---
+
+## Setup Instructions
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/khushi08567/smart-energy--security-monitoring.git
+cd smart-energy--security-monitoring
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Create .env file
+```
+PORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=smart_energy_db
+DB_PORT=3306
+JWT_SECRET=your_jwt_secret
+MONGO_URI=mongodb://localhost:27017/smart_energy_db
+```
+
+### 4. Start the server
+```bash
+npm run dev
+```
+
+### 5. Run IoT simulator (optional, second terminal)
+```bash
+npm run simulate
+```
+
+---
+
+## API Endpoints
+
+### Auth
+| Method | Endpoint              | Description       |
+|--------|-----------------------|-------------------|
+| POST   | /api/auth/register    | Register user     |
+| POST   | /api/auth/login       | Login, get token  |
+
+### Users (JWT required)
+| Method | Endpoint              | Role         |
+|--------|-----------------------|--------------|
+| GET    | /api/users/me         | Any          |
+| GET    | /api/users            | Admin/Warden |
+| PUT    | /api/users/:id        | Admin        |
+| DELETE | /api/users/:id        | Admin        |
+
+### Rooms (JWT required)
+| Method | Endpoint                  | Role         |
+|--------|---------------------------|--------------|
+| GET    | /api/rooms                | Any          |
+| POST   | /api/rooms                | Admin/Warden |
+| GET    | /api/rooms/floor/:floor   | Any          |
+| PUT    | /api/rooms/:id            | Admin/Warden |
+| DELETE | /api/rooms/:id            | Admin        |
+
+### Devices (JWT required)
+| Method | Endpoint                    | Role         |
+|--------|-----------------------------|--------------|
+| GET    | /api/devices                | Any          |
+| POST   | /api/devices                | Admin/Warden |
+| GET    | /api/devices/room/:roomId   | Any          |
+| PUT    | /api/devices/:id            | Admin/Warden |
+| DELETE | /api/devices/:id            | Admin        |
+
+### Sensors
+| Method | Endpoint                      | Auth  |
+|--------|-------------------------------|-------|
+| POST   | /api/sensors/data             | None  |
+| GET    | /api/sensors/latest/:roomId   | JWT   |
+| GET    | /api/sensors/data/:deviceId   | JWT   |
+| GET    | /api/sensors/history          | JWT   |
+
+---
+
+## Real-time Events (Socket.io)
+| Event       | Direction       | Description                  |
+|-------------|-----------------|------------------------------|
+| sensor-data | Server → Client | New reading from any device  |
+| room-data   | Server → Client | New reading for specific room|
+| join-room   | Client → Server | Subscribe to a room channel  |
+
+---
+
+## Folder Structure
+```
+src/
+  controllers/   — business logic
+  routes/        — API route definitions
+  models/        — Sequelize + Mongoose models
+  middleware/    — auth + role middleware
+  config/        — DB connections + socket setup
+  utils/         — response helpers
+simulator/       — IoT data simulator
+docs/            — schema docs + Postman collection
+```
