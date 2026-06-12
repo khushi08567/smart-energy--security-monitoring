@@ -20,6 +20,7 @@ const deviceRoutes = require("./src/routes/deviceRoutes");
 const roomRoutes = require("./src/routes/roomRoutes");
 const sensorRoutes = require("./src/routes/sensorRoutes");
 const energyRoutes = require("./src/routes/energyRoutes");
+const securityRoutes = require("./src/routes/securityRoutes");
 
 const verifyToken = require("./src/middleware/authMiddleware");
 
@@ -46,6 +47,7 @@ app.use("/api/devices", deviceRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/sensors", sensorRoutes);
 app.use("/api/energy", energyRoutes);
+app.use("/api/security", securityRoutes);
 
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Protected route accessed", user: req.user });
