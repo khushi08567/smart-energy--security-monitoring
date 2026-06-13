@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const sequelize = require("./src/config/database");
 const setupSocket = require("./src/config/socketHandler");
 const verifyToken = require("./src/middleware/authMiddleware");
+
 // Models
 const User = require("./src/models/User");
 const Room = require("./src/models/Room");
@@ -22,6 +23,7 @@ const sensorRoutes = require("./src/routes/sensorRoutes");
 const energyRoutes = require("./src/routes/energyRoutes");
 const securityRoutes = require("./src/routes/securityRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
+const dashboardRoutes = require("./src/routes/dashboardRoutes");
 
 // Create app FIRST
 const app = express();
@@ -35,11 +37,12 @@ app.set("io", io);
 app.use(cors());
 app.use(express.json());
 
+// Health check
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Smart Energy & Security API is running" });
 });
 
-// All routes AFTER app is created
+// All routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/devices", deviceRoutes);
@@ -48,11 +51,14 @@ app.use("/api/sensors", sensorRoutes);
 app.use("/api/energy", energyRoutes);
 app.use("/api/security", securityRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
+// Protected test route
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Protected route accessed", user: req.user });
 });
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
