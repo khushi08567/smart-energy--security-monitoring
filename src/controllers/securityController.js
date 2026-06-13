@@ -2,6 +2,8 @@ const SecurityEvent = require("../models/SecurityEvent");
 const SensorData = require("../models/SensorData");
 const Room = require("../models/Room");
 const { sendSuccess, sendError } = require("../utils/response");
+const { sendSecurityAlert } = require("../config/mailer");
+const { createNotification } = require("./notificationController");
 
 // Helper: check if time is night (10pm - 6am)
 const isNightTime = (date = new Date()) => {
@@ -19,7 +21,7 @@ const getSeverity = (eventType, atNight = false) => {
   return "Low";
 };
 
-// POST /api/security/event — log a security event manually
+// POST /api/security/event — log a security event
 const logSecurityEvent = async (req, res) => {
   try {
     const { device_id, room_id, event_type, description } = req.body;
@@ -39,8 +41,9 @@ const logSecurityEvent = async (req, res) => {
       description,
     });
 
-    // Emit socket alert
     const io = req.app.get("io");
+
+    // 1. Emit socket alert
     if (io) {
       io.emit("security-alert", {
         event_id: event._id,
@@ -50,6 +53,22 @@ const logSecurityEvent = async (req, res) => {
         description: event.description,
         timestamp: event.timestamp,
       });
+    }
+
+    // 2. Create in-app notification
+    await createNotification(io, {
+      title: `Security Alert: ${event_type.replace(/_/g, " ")}`,
+      message: description,
+      type: "security",
+      severity: severity === "Critical" ? "critical"
+              : severity === "High" ? "danger"
+              : severity === "Medium" ? "warning" : "info",
+      reference_id: event._id.toString(),
+    });
+
+    // 3. Send email for High/Critical events only
+    if (severity === "High" || severity === "Critical") {
+      sendSecurityAlert(event); // non-blocking
     }
 
     return sendSuccess(res, event, "Security event logged", 201);
@@ -120,7 +139,6 @@ const resolveSecurityEvent = async (req, res) => {
     event.resolved_by = req.user.id;
     await event.save();
 
-    // Emit socket update
     const io = req.app.get("io");
     if (io) {
       io.emit("security-resolved", {
@@ -130,6 +148,15 @@ const resolveSecurityEvent = async (req, res) => {
         resolved_at: event.resolved_at,
       });
     }
+
+    // Create resolved notification
+    await createNotification(io, {
+      title: "Security Event Resolved",
+      message: `Event ${event.event_type.replace(/_/g, " ")} in room ${event.room_id} has been resolved`,
+      type: "security",
+      severity: "info",
+      reference_id: event._id.toString(),
+    });
 
     return sendSuccess(res, event, "Security event resolved");
   } catch (error) {
@@ -174,16 +201,16 @@ const checkNightMotion = async (req, res) => {
       }, "Not night time");
     }
 
-    // Check for motion readings in last 30 minutes
     const motionReadings = await SensorData.find({
       type: "motion",
       value: true,
       timestamp: { $gte: thirtyMinAgo },
     });
 
+    const io = req.app.get("io");
     const alerts = [];
+
     for (const reading of motionReadings) {
-      // Check if already logged
       const existing = await SecurityEvent.findOne({
         room_id: reading.room_id,
         event_type: "night_motion",
@@ -198,6 +225,15 @@ const checkNightMotion = async (req, res) => {
           severity: "High",
           description: `Night motion detected in room ${reading.room_id} at ${reading.timestamp}`,
         });
+
+        await createNotification(io, {
+          title: "Night Motion Detected",
+          message: `Motion detected in room ${reading.room_id} during night hours`,
+          type: "security",
+          severity: "danger",
+          reference_id: event._id.toString(),
+        });
+
         alerts.push(event);
       }
     }
@@ -218,6 +254,7 @@ const getSecurityStats = async (req, res) => {
     const total = await SecurityEvent.countDocuments();
     const unresolved = await SecurityEvent.countDocuments({ resolved: false });
     const critical = await SecurityEvent.countDocuments({ severity: "Critical" });
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayCount = await SecurityEvent.countDocuments({

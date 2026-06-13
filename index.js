@@ -7,7 +7,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const sequelize = require("./src/config/database");
 const setupSocket = require("./src/config/socketHandler");
-
+const verifyToken = require("./src/middleware/authMiddleware");
 // Models
 const User = require("./src/models/User");
 const Room = require("./src/models/Room");
@@ -21,8 +21,7 @@ const roomRoutes = require("./src/routes/roomRoutes");
 const sensorRoutes = require("./src/routes/sensorRoutes");
 const energyRoutes = require("./src/routes/energyRoutes");
 const securityRoutes = require("./src/routes/securityRoutes");
-
-const verifyToken = require("./src/middleware/authMiddleware");
+const notificationRoutes = require("./src/routes/notificationRoutes");
 
 // Create app FIRST
 const app = express();
@@ -48,6 +47,7 @@ app.use("/api/rooms", roomRoutes);
 app.use("/api/sensors", sensorRoutes);
 app.use("/api/energy", energyRoutes);
 app.use("/api/security", securityRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Protected route accessed", user: req.user });
