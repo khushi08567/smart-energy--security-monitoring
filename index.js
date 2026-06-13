@@ -24,7 +24,7 @@ const energyRoutes = require("./src/routes/energyRoutes");
 const securityRoutes = require("./src/routes/securityRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
-
+const analyticsRoutes = require("./src/routes/analyticsRoutes");
 // Create app FIRST
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +52,7 @@ app.use("/api/energy", energyRoutes);
 app.use("/api/security", securityRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Protected test route
 app.get("/api/protected", verifyToken, (req, res) => {
