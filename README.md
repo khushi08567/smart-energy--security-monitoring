@@ -56,7 +56,27 @@ npm run simulate
 
 ---
 
-## API Endpoints
+## API Endpoints & Documentation
+
+All API endpoints are documented interactively with Swagger!
+* **Swagger UI Docs Endpoint:** `http://localhost:5000/api/docs`
+* **JSON Raw OpenAPI Spec:** `http://localhost:5000/api/docs/json`
+
+Use the Swagger UI sandbox to test endpoints, authenticate using JWT bearer token, and inspect response formats.
+
+### Main Endpoint Categories:
+* **Auth (`/api/auth`)**: User signup and login
+* **Users (`/api/users`)**: Fetch profile details and manage system users
+* **Rooms (`/api/rooms`)**: Campus room layouts and occupancy
+* **Devices (`/api/devices`)**: Registered sensor hardware nodes
+* **Sensors (`/api/sensors`)**: Historical logs and webhook input
+* **Energy (`/api/energy`)**: Consumption analytics, billing calculators, and idle devices
+* **Security (`/api/security`)**: Security event trackers, resolve logs, and active scans
+* **Notifications (`/api/notifications`)**: User alerts and read statuses
+* **Dashboard (`/api/dashboard`)**: General status feeds and overview metrics
+* **Analytics (`/api/analytics`)**: Detailed reports, peak hours, and CSV exports
+
+---
 
 ### Auth
 | Method | Endpoint              | Description       |
