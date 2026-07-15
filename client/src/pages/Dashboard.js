@@ -1129,7 +1129,7 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     const socketHost = window.location.hostname === "localhost" 
       ? "http://localhost:5000" 
-      : "https://smart-energy--security-monitoring.onrender.com";
+      : window.location.origin;
 
     socketRef.current = io(socketHost);
 
