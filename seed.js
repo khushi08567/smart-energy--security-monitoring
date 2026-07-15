@@ -64,6 +64,14 @@ async function runSeed() {
       role: "Viewer",
     });
 
+    const hashedPersonalPwd = await bcrypt.hash("123456", 10);
+    await User.create({
+      name: "Khushi Pathak",
+      email: "khushipathak.080@gmail.com",
+      password: hashedPersonalPwd,
+      role: "Admin",
+    });
+
     console.log("✅ Users populated (Admin, Warden, Viewer).");
 
     // 2. Seed Campus Rooms
