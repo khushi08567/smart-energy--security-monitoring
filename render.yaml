@@ -3,7 +3,7 @@ services:
   - type: web
     name: smart-energy-security-api
     env: node
-    buildCommand: npm install
+    buildCommand: npm run build
     startCommand: node index.js
     envVars:
       - key: PORT

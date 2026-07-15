@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build": "npm install && cd client && npm install && npm run build",
     "simulate": "node simulator/simulator.js",
     "seed": "node seed.js",
     "test": "node --test tests/api.test.js"
