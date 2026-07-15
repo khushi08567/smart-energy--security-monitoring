@@ -4,10 +4,51 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg-color: #080c14;
+  --card-bg: rgba(30, 41, 59, 0.35);
+  --text-color: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #1e293b;
+  --nav-bg: rgba(15, 23, 42, 0.85);
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  
+  --energy-color: #3b82f6;
+  --energy-glow: rgba(59, 130, 246, 0.3);
+  --security-color: #f97316;
+  --security-glow: rgba(249, 115, 22, 0.3);
+  --security-danger: #ef4444;
+
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-text: #10b981;
+  --warning-bg: rgba(234, 179, 8, 0.15);
+  --warning-text: #eab308;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-text: #ef4444;
+}
+
+[data-theme='light'] {
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --text-color: #0f172a;
+  --text-muted: #475569;
+  --border-color: #e2e8f0;
+  --nav-bg: rgba(255, 255, 255, 0.95);
+  --shadow: 0 10px 25px -12px rgba(15, 23, 42, 0.08);
+
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-text: #059669;
+  --warning-bg: rgba(217, 119, 6, 0.1);
+  --warning-text: #d97706;
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --danger-text: #dc2626;
+}
+
 body {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #090d16;
-  color: #f1f5f9;
+  background: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -24,9 +65,88 @@ body {
 }
 .hover-scale:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow);
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #1e293b; }
-::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+/* Skeleton Loading Animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+.skeleton {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: var(--border-color);
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  height: 12px;
+  margin-bottom: 8px;
+  background-color: var(--border-color);
+}
+
+/* Toast Animations */
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.toast-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .responsive-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-nav {
+    flex-direction: column !important;
+    height: auto !important;
+    padding: 16px !important;
+    gap: 12px !important;
+  }
+  .responsive-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .responsive-tabrow {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+/* PDF Print Styles */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  nav, button, a, .responsive-tabrow, [title*="Assistant"], [title*="alerts"], button, iframe {
+    display: none !important;
+  }
+  .fade-in {
+    animation: none !important;
+    transform: none !important;
+  }
+  div, section {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #dddddd !important;
+    box-shadow: none !important;
+  }
+}
+

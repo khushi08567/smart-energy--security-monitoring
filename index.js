@@ -28,6 +28,7 @@ const notificationRoutes = require("./src/routes/notificationRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const docsRoutes = require("./src/routes/docsRoutes");
+const chatbotRoutes = require("./src/routes/chatbotRoutes");
 
 // Create app FIRST
 const app = express();
@@ -50,7 +51,7 @@ app.use(helmet({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per 15 mins
+  max: 15000, // Support high-frequency simulator streams (approx 4500 reqs / 15m)
   message: {
     success: false,
     message: "Too many requests from this IP. Please try again after 15 minutes."
@@ -58,7 +59,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-app.use("/api", apiLimiter);
+app.use("/api", apiLimiter); // Enabled rate limiting on all API routes
 
 // Health check
 app.get("/", (req, res) => {
@@ -94,6 +95,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard",     dashboardRoutes);
 app.use("/api/analytics",     analyticsRoutes);
 app.use("/api/docs",          docsRoutes);
+app.use("/api/chatbot",       chatbotRoutes);
 
 // Protected test route
 app.get("/api/protected", verifyToken, (req, res) => {

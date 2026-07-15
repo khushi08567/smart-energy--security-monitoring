@@ -7,6 +7,8 @@ const {
   exportMonthlyCSV,
   getDeviceUsage,
   getAnalyticsSummary,
+  getAuditLogs,
+  triggerEmailDigest,
 } = require("../controllers/analyticsController");
 const verifyToken = require("../middleware/authMiddleware");
 const { checkRole } = require("../middleware/roleMiddleware");
@@ -18,7 +20,13 @@ router.get("/security-hotspots",   verifyToken, checkRole("Admin", "Warden"), ge
 router.get("/device-usage",        verifyToken, checkRole("Admin", "Warden"), getDeviceUsage);
 router.get("/summary",             verifyToken, checkRole("Admin", "Warden"), getAnalyticsSummary);
 
-// CSV export — returns file download
+// Audit logs (Admin only)
+router.get("/audit-logs",          verifyToken, checkRole("Admin"), getAuditLogs);
+
+// Email Performance digest dispatches (Admin/Warden only)
+router.post("/email-digest",       verifyToken, checkRole("Admin", "Warden"), triggerEmailDigest);
+
+// CSV export
 router.get("/export/monthly",      verifyToken, checkRole("Admin", "Warden"), exportMonthlyCSV);
 
 module.exports = router;

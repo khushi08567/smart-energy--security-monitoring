@@ -96,6 +96,18 @@ The **Smart Energy & Security Monitoring System** resolves the operational chall
 └── README.md                    # Project documentation (this file)
 ```
 
+## 📊 Database Seeding & Test Accounts
+To populate your SQL and MongoDB databases with 30 days of realistic historical energy draw charts and security timeline events before first launch:
+```bash
+npm run seed
+```
+
+### Seeded Credentials
+You can authenticate on the web dashboard or Swagger Sandbox using these pre-seeded accounts:
+* **Admin Account:** `admin@smartmonitor.com` | Password: `admin123`
+* **Warden Account (Floor 2):** `warden2@smartmonitor.com` | Password: `warden123`
+* **Viewer Account (Read-Only):** `viewer@smartmonitor.com` | Password: `viewer123`
+
 ---
 
 ## 🚀 Setup & Launch Instructions

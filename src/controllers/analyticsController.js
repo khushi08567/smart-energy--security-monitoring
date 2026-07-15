@@ -2,6 +2,8 @@ const SensorData = require("../models/SensorData");
 const SecurityEvent = require("../models/SecurityEvent");
 const Room = require("../models/Room");
 const Device = require("../models/Device");
+const AuditLog = require("../models/AuditLog");
+const { sendDigestEmail } = require("../utils/emailHelper");
 const { Parser } = require("json2csv");
 const { sendSuccess, sendError } = require("../utils/response");
 
@@ -159,7 +161,7 @@ const getSecurityHotspots = async (req, res) => {
       since: since.toISOString().split("T")[0],
       total_hotspots: enriched.length,
       hotspots: enriched,
-    }, "Security hotspots analysis");
+    }, "security hotspots analysis");
   } catch (error) {
     return sendError(res, error.message);
   }
@@ -198,6 +200,14 @@ const exportMonthlyCSV = async (req, res) => {
     });
 
     const csv = parser.parse(rows);
+
+    // Audit log this export
+    await AuditLog.create({
+      userId: req.user.id,
+      email: req.user.email,
+      action: "EXPORT_CSV",
+      details: `Exported monthly CSV report for type '${type}', period: ${monthStr}`,
+    });
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
@@ -332,6 +342,122 @@ const getAnalyticsSummary = async (req, res) => {
   }
 };
 
+// GET /api/analytics/audit-logs
+// Admin-only view of console actions
+const getAuditLogs = async (req, res) => {
+  try {
+    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
+    return sendSuccess(res, logs, "Audit logs fetched successfully");
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+};
+
+// POST /api/analytics/email-digest
+// Dispatches weekly energy + security digest
+const triggerEmailDigest = async (req, res) => {
+  try {
+    const recipient = req.user.email;
+    if (!recipient) {
+      return sendError(res, "No email address found for this user account", 400);
+    }
+
+    const days = 7;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Aggregate statistics
+    const energyResult = await SensorData.aggregate([
+      { $match: { type: "energy", timestamp: { $gte: since } } },
+      { $group: { _id: null, total: { $sum: { $toDouble: "$value" } } } },
+    ]);
+
+    const totalReadings = await SensorData.countDocuments({ timestamp: { $gte: since } });
+    const totalEvents = await SecurityEvent.countDocuments({ timestamp: { $gte: since } });
+    const resolvedEvents = await SecurityEvent.countDocuments({ timestamp: { $gte: since }, resolved: true });
+
+    const totalKwh = energyResult.length > 0 ? energyResult[0].total : 0;
+    const estimatedCost = totalKwh * 8.0;
+
+    const html = `
+      <div style="font-family: 'Outfit', -apple-system, sans-serif; background-color: #f8fafc; padding: 32px; color: #0f172a;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 32px; color: #ffffff; text-align: center;">
+            <span style="font-size: 40px;">⚡</span>
+            <h1 style="margin: 12px 0 4px 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Campus Monitor Portal</h1>
+            <p style="margin: 0; font-size: 14px; opacity: 0.85;">Weekly Energy & Security Performance Digest</p>
+          </div>
+          
+          <!-- Body -->
+          <div style="padding: 32px;">
+            <p style="margin-top: 0; font-size: 15px; line-height: 1.5; color: #475569;">
+              Hello <strong>${req.user.role}</strong>, here is the automated digest overview of the Smart Monitoring system activities over the past <strong>${days} days</strong>.
+            </p>
+            
+            <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 32px; font-size: 15px; text-transform: uppercase; color: #1e3a8a; letter-spacing: 0.5px;">⚡ Energy Telemetry Summary</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px;">
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Aggregate Power Consumption</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #3b82f6;">${totalKwh.toFixed(2)} kWh</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Estimated Electricity Cost</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #0f172a;">${estimatedCost.toFixed(2)} INR</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Active Sensors Telemetry Count</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #64748b;">${totalReadings} packets</td>
+              </tr>
+            </table>
+
+            <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 32px; font-size: 15px; text-transform: uppercase; color: #7f1d1d; letter-spacing: 0.5px;">🚨 Security Incident Summary</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px;">
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Total Breaches Detected</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #ef4444;">${totalEvents} events</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Resolved / Cleared Incidents</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #10b981;">${resolvedEvents} incidents</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #64748b;">Current Active Breaches</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #f97316;">${totalEvents - resolvedEvents} critical cases</td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 40px; padding: 16px; background-color: #f1f5f9; border-radius: 8px; font-size: 12px; color: #64748b; line-height: 1.5; text-align: center;">
+              This report was triggered on-demand via the Smart Monitor Console.
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+            © 2026 Smart Energy & Security Monitor. All rights reserved.
+          </div>
+        </div>
+      </div>
+    `;
+
+    const result = await sendDigestEmail(recipient, `Smart Monitor Performance Summary Digest`, html);
+    
+    // Log email digest trigger event
+    await AuditLog.create({
+      userId: req.user.id,
+      email: req.user.email,
+      action: "SEND_EMAIL_DIGEST",
+      details: `Dispatched Weekly Email Performance Digest to ${recipient}`,
+    });
+
+    return sendSuccess(res, {
+      message: `Weekly Performance Digest successfully sent to ${recipient}!`,
+      previewUrl: result.previewUrl || null,
+    });
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+};
+
 module.exports = {
   getEnergyLeaderboard,
   getPeakHoursAll,
@@ -339,4 +465,6 @@ module.exports = {
   exportMonthlyCSV,
   getDeviceUsage,
   getAnalyticsSummary,
+  getAuditLogs,
+  triggerEmailDigest,
 };
