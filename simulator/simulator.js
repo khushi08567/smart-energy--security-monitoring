@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = process.env.API_BASE || "http://localhost:5000/api";
 
 let devices = [];
 let token = null;
